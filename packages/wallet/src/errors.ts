@@ -1,3 +1,13 @@
+/** The connected wallet can't sign arbitrary messages (SEP-53). */
+export class MessageSigningUnsupportedError extends Error {
+  constructor() {
+    super(
+      "This wallet can't sign verification messages. Connect the same account in a wallet that supports message signing (SEP-53), such as Freighter, xBull, Lobstr or Hana, and try again.",
+    );
+    this.name = 'MessageSigningUnsupportedError';
+  }
+}
+
 /** Turn wallet-kit / extension errors into plain language for non-crypto users. */
 export function describeWalletError(error: unknown): string {
   // PaymentError messages are already plain language; don't re-classify them by keyword.
@@ -6,6 +16,7 @@ export function describeWalletError(error: unknown): string {
     typeof error === 'object' && error !== null && 'message' in error
       ? String((error as { message: unknown }).message)
       : String(error ?? '');
+  if (error instanceof MessageSigningUnsupportedError) return error.message;
   const lower = message.toLowerCase();
   if (/(declin|reject|cancel|denied|closed)/.test(lower)) {
     return 'You cancelled the request in your wallet. Nothing was signed.';

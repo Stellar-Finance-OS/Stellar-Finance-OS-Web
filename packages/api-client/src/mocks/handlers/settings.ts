@@ -1,6 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import type { ApprovalPolicyInput, OrgInput, Role } from '../../types';
 import { ADMIN_ROLES, authenticate, error, newId, requireRole, type MockContext } from '../context';
+import { verifyWalletProof } from '../wallet-proof';
 
 export const settingsHandlers = ({ db, base }: MockContext) => [
   http.get(`${base}/org`, ({ request }) => {
@@ -16,7 +17,19 @@ export const settingsHandlers = ({ db, base }: MockContext) => [
     const denied = requireRole(caller, ADMIN_ROLES);
     if (denied) return denied;
     const org = db.orgs.find((o) => o.id === caller.orgId)!;
-    Object.assign(org, (await request.json()) as OrgInput);
+    const { challengeId, signature, ...input } = (await request.json()) as OrgInput;
+    if (
+      input.linkedWalletAddress !== undefined &&
+      input.linkedWalletAddress !== org.linkedWalletAddress
+    ) {
+      const invalid = await verifyWalletProof(
+        db,
+        { orgId: org.id, address: input.linkedWalletAddress, purpose: 'link_org_wallet' },
+        { challengeId, signature },
+      );
+      if (invalid) return invalid;
+    }
+    Object.assign(org, input);
     for (const u of db.users)
       for (const m of u.memberships) if (m.orgId === org.id) m.orgName = org.name;
     return HttpResponse.json(org);

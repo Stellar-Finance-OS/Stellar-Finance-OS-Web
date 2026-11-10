@@ -1730,6 +1730,43 @@
           }
         }
       }
+    },
+    "/wallet-challenges": {
+      "post": {
+        "operationId": "createWalletChallenge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WalletChallengeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletChallenge"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2255,9 +2292,17 @@
           },
           "address": {
             "type": "string"
+          },
+          "challengeId": {
+            "type": "string",
+            "description": "From POST /wallet-challenges."
+          },
+          "signature": {
+            "type": "string",
+            "description": "Base64 SEP-53 signature of the challenge message."
           }
         },
-        "required": ["name", "address"]
+        "required": ["name", "address", "challengeId", "signature"]
       },
       "PaymentRequestStatus": {
         "type": "string",
@@ -2707,9 +2752,18 @@
           },
           "linkedWalletAddress": {
             "type": "string"
+          },
+          "challengeId": {
+            "type": "string",
+            "description": "From POST /wallet-challenges."
+          },
+          "signature": {
+            "type": "string",
+            "description": "Base64 SEP-53 signature of the challenge message."
           }
         },
-        "required": []
+        "required": [],
+        "description": "Changing linkedWalletAddress requires challengeId + signature for that address."
       },
       "Member": {
         "type": "object",
@@ -2809,6 +2863,40 @@
           }
         },
         "required": ["name", "assetCode", "minAmount", "requiredApprovals", "approverRoles"]
+      },
+      "WalletChallengePurpose": {
+        "type": "string",
+        "enum": ["link_org_wallet", "add_treasury_account"]
+      },
+      "WalletChallengeInput": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "Stellar G-address that will sign the challenge."
+          },
+          "purpose": {
+            "$ref": "#/components/schemas/WalletChallengePurpose"
+          }
+        },
+        "required": ["address", "purpose"]
+      },
+      "WalletChallenge": {
+        "type": "object",
+        "description": "Single-use, short-lived message the wallet signs (SEP-53) to prove it controls `address`. Includes the org name and network.",
+        "properties": {
+          "challengeId": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": ["challengeId", "message", "expiresAt"]
       }
     },
     "parameters": {

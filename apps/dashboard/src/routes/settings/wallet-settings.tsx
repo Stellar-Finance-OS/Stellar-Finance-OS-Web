@@ -18,6 +18,8 @@ import { usePermission } from '../../auth/use-permission';
 import { FormError } from '../../components/forms/form-error';
 import { QueryView } from '../../components/query-view';
 import { env } from '../../env';
+import { useWalletProof } from '../../features/wallet-proof/use-wallet-proof';
+import { WalletProofPrompt } from '../../features/wallet-proof/wallet-proof-prompt';
 
 export function WalletSettingsPage() {
   const org = useOrg();
@@ -25,6 +27,13 @@ export function WalletSettingsPage() {
   const wallet = useWallet();
   const canManage = usePermission('settings:manage');
   const [error, setError] = useState<string | null>(null);
+  const proof = useWalletProof('link_org_wallet');
+
+  const sign = async () => {
+    const address = proof.challenge?.address;
+    const result = await proof.sign();
+    if (address && result) update.mutate({ linkedWalletAddress: address, ...result });
+  };
 
   const connect = async () => {
     setError(null);
@@ -64,25 +73,42 @@ export function WalletSettingsPage() {
                 },
               ]}
             />
-            {error ? (
+            {proof.challenge ? (
+              <WalletProofPrompt
+                challenge={proof.challenge}
+                busy={proof.isSigning || update.isPending}
+                onSign={sign}
+                onCancel={proof.cancel}
+              />
+            ) : null}
+            {error || proof.error ? (
               <Alert variant="destructive">
                 <AlertCircle />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{error ?? proof.error}</AlertDescription>
               </Alert>
             ) : null}
-            <FormError error={update.error} />
+            <FormError error={proof.requestError ?? update.error} />
             <div className="flex flex-wrap gap-2">
               {wallet.address ? (
                 <>
-                  {canManage && wallet.address !== o.linkedWalletAddress ? (
+                  {canManage && wallet.address !== o.linkedWalletAddress && !proof.challenge ? (
                     <Button
-                      disabled={update.isPending}
-                      onClick={() => update.mutate({ linkedWalletAddress: wallet.address! })}
+                      disabled={update.isPending || proof.isRequesting}
+                      onClick={() => {
+                        update.reset();
+                        void proof.start(wallet.address!);
+                      }}
                     >
-                      Link this wallet
+                      {proof.isRequesting ? 'Preparing…' : 'Link this wallet'}
                     </Button>
                   ) : null}
-                  <Button variant="outline" onClick={() => wallet.disconnect()}>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      proof.cancel();
+                      void wallet.disconnect();
+                    }}
+                  >
                     Disconnect
                   </Button>
                 </>

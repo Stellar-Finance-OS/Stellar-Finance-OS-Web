@@ -533,6 +533,22 @@ export interface paths {
         patch: operations["updateApprovalPolicy"];
         trace?: never;
     };
+    "/wallet-challenges": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createWalletChallenge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -706,6 +722,10 @@ export interface components {
         TreasuryAccountInput: {
             name: string;
             address: string;
+            /** @description From POST /wallet-challenges. */
+            challengeId: string;
+            /** @description Base64 SEP-53 signature of the challenge message. */
+            signature: string;
         };
         /** @enum {string} */
         PaymentRequestStatus: "pending_approval" | "approved" | "rejected" | "submitted" | "settled" | "failed";
@@ -852,11 +872,16 @@ export interface components {
             defaultAssetCode: string;
             linkedWalletAddress?: string;
         };
+        /** @description Changing linkedWalletAddress requires challengeId + signature for that address. */
         OrgInput: {
             name?: string;
             legalName?: string;
             defaultAssetCode?: string;
             linkedWalletAddress?: string;
+            /** @description From POST /wallet-challenges. */
+            challengeId?: string;
+            /** @description Base64 SEP-53 signature of the challenge message. */
+            signature?: string;
         };
         Member: {
             id: string;
@@ -890,6 +915,20 @@ export interface components {
             minAmount: string;
             requiredApprovals: number;
             approverRoles: components["schemas"]["Role"][];
+        };
+        /** @enum {string} */
+        WalletChallengePurpose: "link_org_wallet" | "add_treasury_account";
+        WalletChallengeInput: {
+            /** @description Stellar G-address that will sign the challenge. */
+            address: string;
+            purpose: components["schemas"]["WalletChallengePurpose"];
+        };
+        /** @description Single-use, short-lived message the wallet signs (SEP-53) to prove it controls `address`. Includes the org name and network. */
+        WalletChallenge: {
+            challengeId: string;
+            message: string;
+            /** Format: date-time */
+            expiresAt: string;
         };
     };
     responses: never;
@@ -2345,6 +2384,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApprovalPolicy"];
+                };
+            };
+            /** @description Error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createWalletChallenge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WalletChallengeInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WalletChallenge"];
                 };
             };
             /** @description Error */

@@ -22,6 +22,11 @@ export interface WalletState {
    * connected account is `expectedSigner`). Throws WalletCheckError if not.
    */
   signTransaction: (xdr: string, options?: { expectedSigner?: string }) => Promise<string>;
+  /**
+   * Sign a message (SEP-53) with the same network and signer checks as transactions.
+   * Returns the base64 signature. Only the address and signature ever leave the browser.
+   */
+  signMessage: (message: string, options?: { expectedSigner?: string }) => Promise<string>;
 }
 
 export const WalletContext = createContext<WalletState | null>(null);

@@ -148,3 +148,46 @@ describe('mock backend', () => {
     );
   });
 });
+
+describe('wallet ownership proof', () => {
+  it('rejects unsigned links, bad signatures and reused challenges', async () => {
+    const { Keypair } = await import('@stellar/stellar-sdk');
+    const { sep53Digest } = await import('./index');
+    const api = await as('ada@acme.test');
+    const kp = Keypair.random();
+    const address = kp.publicKey();
+
+    const unsigned = await api.PATCH('/org', { body: { linkedWalletAddress: address } });
+    expect(unsigned.error?.code).toBe('wallet_proof_required');
+
+    const challenge = async () =>
+      unwrap(
+        await api.POST('/wallet-challenges', { body: { address, purpose: 'link_org_wallet' } }),
+      );
+    type Bytes = Parameters<typeof kp.sign>[0];
+    const signWith = async (signer: typeof kp, message: string) =>
+      btoa(String.fromCharCode(...signer.sign((await sep53Digest(message)) as Bytes)));
+    const sign = (message: string) => signWith(kp, message);
+
+    const bad = await challenge();
+    const forged = await signWith(Keypair.random(), bad.message);
+    const rejected = await api.PATCH('/org', {
+      body: {
+        linkedWalletAddress: address,
+        challengeId: bad.challengeId,
+        signature: forged,
+      },
+    });
+    expect(rejected.error?.code).toBe('signature_invalid');
+
+    const good = await challenge();
+    const body = {
+      linkedWalletAddress: address,
+      challengeId: good.challengeId,
+      signature: await sign(good.message),
+    };
+    expect(unwrap(await api.PATCH('/org', { body })).linkedWalletAddress).toBe(address);
+    db.orgs[0]!.linkedWalletAddress = 'GOLD';
+    expect((await api.PATCH('/org', { body })).error?.code).toBe('challenge_used');
+  });
+});

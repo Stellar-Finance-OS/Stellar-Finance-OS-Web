@@ -38,25 +38,43 @@ export function WalletProvider({ network, client, children }: WalletProviderProp
     setStatus('disconnected');
   }, [wallet]);
 
-  const signTransaction = useCallback<WalletState['signTransaction']>(
-    async (xdr, options = {}) => {
+  /** Network + signer checks shared by every signature. Returns the signing address. */
+  const preflight = useCallback(
+    async (expectedSigner?: string) => {
       const address = addressRef.current;
       if (!address) throw new WalletCheckError('Connect your wallet first.', 'not-connected');
       const networkCheck = await wallet.checkNetwork();
       if (!networkCheck.ok) throw new WalletCheckError(networkCheck.message, 'network-mismatch');
-      if (options.expectedSigner) {
-        const signerCheck = checkSigner(options.expectedSigner, address);
+      if (expectedSigner) {
+        const signerCheck = checkSigner(expectedSigner, address);
         if (!signerCheck.ok) throw new WalletCheckError(signerCheck.message, 'wrong-account');
       }
-      const { signedXdr } = await wallet.signTransaction(xdr, { address });
-      return signedXdr;
+      return address;
     },
     [wallet],
   );
 
+  const signTransaction = useCallback<WalletState['signTransaction']>(
+    async (xdr, options = {}) => {
+      const address = await preflight(options.expectedSigner);
+      const { signedXdr } = await wallet.signTransaction(xdr, { address });
+      return signedXdr;
+    },
+    [wallet, preflight],
+  );
+
+  const signMessage = useCallback<WalletState['signMessage']>(
+    async (message, options = {}) => {
+      const address = await preflight(options.expectedSigner);
+      const { signature } = await wallet.signMessage(message, { address });
+      return signature;
+    },
+    [wallet, preflight],
+  );
+
   const value = useMemo<WalletState>(
-    () => ({ network, address, status, connect, disconnect, signTransaction }),
-    [network, address, status, connect, disconnect, signTransaction],
+    () => ({ network, address, status, connect, disconnect, signTransaction, signMessage }),
+    [network, address, status, connect, disconnect, signTransaction, signMessage],
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

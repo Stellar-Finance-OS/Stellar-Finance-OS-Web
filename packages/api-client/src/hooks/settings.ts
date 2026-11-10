@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useApiClient } from '../context';
 import { unwrap } from '../errors';
-import type { ApprovalPolicyInput, OrgInput, Role } from '../types';
+import type { ApprovalPolicyInput, OrgInput, Role, WalletChallengeInput } from '../types';
 import { keys } from './keys';
 
 export function useOrg() {
@@ -105,5 +105,14 @@ export function useDeleteApprovalPolicy() {
       unwrap({ data: null, error, response });
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.approvalPolicies }),
+  });
+}
+
+/** Ask the backend for a single-use message the wallet signs to prove it owns `address`. */
+export function useCreateWalletChallenge() {
+  const api = useApiClient();
+  return useMutation({
+    mutationFn: async (body: WalletChallengeInput) =>
+      unwrap(await api.POST('/wallet-challenges', { body })),
   });
 }

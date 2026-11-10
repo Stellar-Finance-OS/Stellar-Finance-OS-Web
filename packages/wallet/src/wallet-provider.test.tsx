@@ -2,6 +2,7 @@
 import { act, renderHook } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it } from 'vitest';
+import { MessageSigningUnsupportedError } from './errors';
 import { createFakeWalletClient, type FakeWalletOptions } from './testing';
 import { useWallet, WalletCheckError } from './wallet-context';
 import { WalletProvider } from './wallet-provider';
@@ -67,5 +68,39 @@ describe('WalletProvider stale closures', () => {
       expect(await signTransaction('XDR')).toBe('signed:XDR');
     });
     expect(fake.calls.signed).toEqual(['XDR']);
+  });
+});
+
+describe('WalletProvider.signMessage', () => {
+  it('signs a message after the network check', async () => {
+    const { result, fake } = setup({ address: 'GPAYER' });
+    await act(() => result.current.connect());
+    expect(await result.current.signMessage('hello', { expectedSigner: 'GPAYER' })).toBe(
+      'sig:hello',
+    );
+    expect(fake.calls.messages).toEqual(['hello']);
+  });
+
+  it('blocks message signing on a network mismatch or wrong account', async () => {
+    const mismatch = setup({ address: 'GPAYER', walletNetwork: 'mainnet' });
+    await act(() => mismatch.result.current.connect());
+    await expect(mismatch.result.current.signMessage('hi')).rejects.toMatchObject({
+      reason: 'network-mismatch',
+    });
+    const wrong = setup({ address: 'GOTHER' });
+    await act(() => wrong.result.current.connect());
+    await expect(
+      wrong.result.current.signMessage('hi', { expectedSigner: 'GTREASURY' }),
+    ).rejects.toMatchObject({ reason: 'wrong-account' });
+    expect(mismatch.fake.calls.messages).toEqual([]);
+    expect(wrong.fake.calls.messages).toEqual([]);
+  });
+
+  it('reports wallets that cannot sign messages', async () => {
+    const { result } = setup({ address: 'GPAYER', supportsMessageSigning: false });
+    await act(() => result.current.connect());
+    await expect(result.current.signMessage('hi')).rejects.toBeInstanceOf(
+      MessageSigningUnsupportedError,
+    );
   });
 });

@@ -14,6 +14,8 @@ import type {
   TreasuryAccount,
   User,
   Vendor,
+  WalletChallenge,
+  WalletChallengePurpose,
 } from '../types';
 import { ADDRESSES, MUXED, TESTNET_USDC_ISSUER } from './constants';
 
@@ -36,7 +38,15 @@ export interface MockDb {
   paymentRequests: PaymentRequest[];
   transactions: Transaction[];
   approvalPolicies: ApprovalPolicy[];
+  walletChallenges: MockWalletChallenge[];
   nextInvoiceNumber: number;
+}
+
+export interface MockWalletChallenge extends WalletChallenge {
+  orgId: string;
+  address: string;
+  purpose: WalletChallengePurpose;
+  used: boolean;
 }
 
 export const sum = (values: string[]) => values.reduce((a, v) => a.plus(v), new Big(0)).toFixed(2);
@@ -484,6 +494,8 @@ export function createDb(
     paymentRequests,
     transactions,
     approvalPolicies,
+    walletChallenges: [],
+    nextInvoiceNumber: 1007,
     nextInvoiceNumber: 1008,
   };
 }

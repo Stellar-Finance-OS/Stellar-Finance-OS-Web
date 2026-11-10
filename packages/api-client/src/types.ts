@@ -43,3 +43,6 @@ export type OrgInput = Schemas['OrgInput'];
 export type Member = Schemas['Member'];
 export type ApprovalPolicy = Schemas['ApprovalPolicy'];
 export type ApprovalPolicyInput = Schemas['ApprovalPolicyInput'];
+export type WalletChallengePurpose = Schemas['WalletChallengePurpose'];
+export type WalletChallengeInput = Schemas['WalletChallengeInput'];
+export type WalletChallenge = Schemas['WalletChallenge'];

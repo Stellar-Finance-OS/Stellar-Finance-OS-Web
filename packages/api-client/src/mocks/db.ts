@@ -495,7 +495,6 @@ export function createDb(
     transactions,
     approvalPolicies,
     walletChallenges: [],
-    nextInvoiceNumber: 1007,
     nextInvoiceNumber: 1008,
   };
 }
